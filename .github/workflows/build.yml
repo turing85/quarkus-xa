@@ -1,0 +1,40 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - '**.gitignore'
+      - 'CODEOWNERS'
+      - 'LICENSE.txt'
+      - '**.md'
+      - '**.adoc'
+      - '**.txt'
+      - '.all-contributorsrc'
+  pull_request:
+    paths-ignore:
+      - '**.gitignore'
+      - 'CODEOWNERS'
+      - 'LICENSE.txt'
+      - '**.md'
+      - '**.adoc'
+      - '**.txt'
+      - '.all-contributorsrc'
+
+concurrency:
+  group: workflow = ${{ github.workflow }}, ref = ${{ github.event.ref }}, pr = ${{ github.event.pull_request.id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.repository != 'turing85/quarkus-xa' }}
+
+permissions:
+  actions: write
+  checks: write
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build
+    uses: turing85/shared-github-workflows/.github/workflows/turing85-maven-quarkus-single-module-build.yml@main
+    secrets:
+      nvd-api-key: ${{ secrets.NVD_API_KEY }}

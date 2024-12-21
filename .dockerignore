@@ -1,0 +1,6 @@
+*
+!target/lib/
+!target/quarkus-app/
+!target/*-runner
+!target/*-runner.jar
+!target/*.so

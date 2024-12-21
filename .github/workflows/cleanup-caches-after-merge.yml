@@ -1,0 +1,17 @@
+name: Cleanup branch caches after merge
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    name: Cleanup branch caches after merge
+    uses: turing85/shared-github-workflows/.github/workflows/cleanup-branch-caches.yml@main
+    with:
+      branch-name: refs/pull/${{ github.event.pull_request.number }}/merge
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}

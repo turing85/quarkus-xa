@@ -1,0 +1,19 @@
+name: Nightly OWASP Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  checks: write
+  pull-requests: write
+
+jobs:
+  nightly-owasp-scan:
+    name: Nightly OWASP Scan
+    uses: turing85/shared-github-workflows/.github/workflows/turing85-maven-owasp-scan-quarkus.yml@main
+    with:
+      comment-enabled: false
+    secrets:
+      nvd-api-key: ${{ secrets.NVD_API_KEY }}

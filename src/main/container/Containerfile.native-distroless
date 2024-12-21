@@ -1,0 +1,19 @@
+ARG DISTROLESS_IMAGE="quay.io/quarkus/quarkus-distroless-image:2.0-2024-12-15@sha256:3c06edcc4591c59ffe73a72eb252b8029933d17495fedadb7736c9948d3332dc"
+
+FROM ${DISTROLESS_IMAGE} as runner
+ARG APP_DIR=/deployment
+ARG UID=1001
+
+USER root
+WORKDIR ${APP_DIR}
+# Include if the project has .so that need to be copied:
+# COPY \
+#  --chmod=444 \
+#  target/*.so /lib/
+COPY \
+  --chmod=111 \
+   target/*-runner ${APP_DIR}/application
+
+ENV LANGUAGE='en_US:en'
+USER ${UID}:${UID}
+ENTRYPOINT [ "./application" ]
