@@ -81,41 +81,41 @@ class EndpointTest {
       // given
       long numberToSend = RANDOM.nextLong();
       // @formatter:off
-    Number expectedNumber = RestAssured
-        .given()
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(numberToSend)
+      Number expectedNumber = RestAssured
+          .given()
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(numberToSend)
 
-        // when
-        .when().post()
+          // when
+          .when().post()
 
-        // then
-        .then()
-            .statusCode(is(Response.Status.CREATED.getStatusCode()))
-            .header(
-                HttpHeaders.LOCATION,
-                is("%s/%d".formatted(url, numberToSend)))
-            .body("value", is(numberToSend))
-            .extract().body().as(Number.class);
-    // @formatter:on
+          // then
+          .then()
+              .statusCode(is(Response.Status.CREATED.getStatusCode()))
+              .header(
+                  HttpHeaders.LOCATION,
+                  is("%s/%d".formatted(url, numberToSend)))
+              .body("value", is(numberToSend))
+              .extract().body().as(Number.class);
+      // @formatter:on
       long received = getMessage(consumer).getBody(Long.class);
       Truth.assertThat(received).isEqualTo(numberToSend);
       // @formatter:off
-    List<Number> results = entityManager
-        .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
-        .setParameter("value", numberToSend)
-        .getResultList();
-    // @formatter:on
+      List<Number> results = entityManager
+          .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
+          .setParameter("value", numberToSend)
+          .getResultList();
+      // @formatter:on
       Truth.assertThat(results).hasSize(1);
       Truth.assertThat(results.getFirst().getValue()).isEqualTo(numberToSend);
 
       // @formatter:off
-    List<Number> actualNumbers = RestAssured
-        .when().get(Long.toString(numberToSend))
-        .then()
-            .statusCode(is(Response.Status.OK.getStatusCode()))
-        .extract().body().as(new TypeRef<>() {});
-    // @formatter:on
+      List<Number> actualNumbers = RestAssured
+          .when().get(Long.toString(numberToSend))
+          .then()
+              .statusCode(is(Response.Status.OK.getStatusCode()))
+          .extract().body().as(new TypeRef<>() {});
+      // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(1);
       Truth.assertThat(actualNumbers.getFirst().getId()).isEqualTo(expectedNumber.getId());
       Truth.assertThat(actualNumbers.getFirst().getValue()).isEqualTo(expectedNumber.getValue());
