@@ -87,10 +87,10 @@ class EndpointTest {
               .contentType(MediaType.APPLICATION_JSON)
               .body(numberToSend)
 
-          // when
+      // when
           .when().post()
 
-          // then
+      // then
           .then()
               .statusCode(is(Response.Status.CREATED.getStatusCode()))
               .contentType(

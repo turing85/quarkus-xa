@@ -25,7 +25,7 @@ This requires the following points
 
 * dependencies:
 ** `quarkus-narayana-jta` for XA-support
-** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql)
+** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql`)
 ** `quarkus-hibernate-orm` for the entity manager
 ** `quarkus-artemis-jms` for the general JMS setup
 ** `quarkus-pooled-jms` for the annotation-based XA integration
@@ -106,9 +106,10 @@ We see that all resources are accounted for, and that the application behaves as
 In this approach we use `QuarkusTransaction.begin()`, `QuarkusTransaction.commit()`, and `QuarkusTransaction.rollback()` instead of `@Transactional` to control the transactional behaviour. The implementation can be found on branch `with-quarkus-transaction`.
 
 This requires the following points (identical to the annotation-based approach):
+
 * dependencies:
 ** `quarkus-narayana-jta` for XA-support
-** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql)
+** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql`)
 ** `quarkus-hibernate-orm` for the entity manager
 ** `quarkus-artemis-jms` for the general JMS setup
 ** `quarkus-pooled-jms` for the annotation-based XA integration
@@ -202,8 +203,9 @@ This requires the following points
 ** `quarkus-hibernate-orm` for the entity manager
 ** `quarkus-artemis-jms` for the general JMS setup
 ** `quarkus-pooled-jms` must not be present
-* `quarkus.datasource.transaction = xa`  so the datasource supports XA
-* `quakrus.artemis.xa-enable = true` so we can inject a `XAConnectionFactory` into our bean
+* configuration:
+** `quarkus.datasource.transaction = xa`  so the datasource supports XA
+** `quakrus.artemis.xa-enable = true` so we can inject a `XAConnectionFactory` into our bean
 
 The code can be found on branch `programmatically` and looks like this
 

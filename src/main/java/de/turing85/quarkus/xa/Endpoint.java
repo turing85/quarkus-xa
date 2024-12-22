@@ -51,8 +51,8 @@ public class Endpoint {
   @Path("{number}")
   public Response getNumber(@PathParam("number") long number) {
     // @formatter:off
-    return Response.ok(
-        entityManager
+    return Response
+        .ok(entityManager
             .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
             .setParameter("value", number)
             .getResultList())
