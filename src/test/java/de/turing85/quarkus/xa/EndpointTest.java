@@ -114,6 +114,7 @@ class EndpointTest {
           .when().get(Long.toString(numberToSend))
           .then()
               .statusCode(is(Response.Status.OK.getStatusCode()))
+              .contentType(is(MediaType.APPLICATION_JSON))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(1);
@@ -164,7 +165,8 @@ class EndpointTest {
       List<Number> actualNumbers = RestAssured
           .when().get(Long.toString(numberToSend))
           .then()
-          .statusCode(is(Response.Status.OK.getStatusCode()))
+              .statusCode(is(Response.Status.OK.getStatusCode()))
+              .contentType(is(MediaType.APPLICATION_JSON))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(0);
