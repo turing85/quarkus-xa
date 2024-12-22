@@ -6,7 +6,6 @@ import jakarta.jms.ConnectionFactory;
 import jakarta.jms.JMSContext;
 import jakarta.jms.Session;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -16,6 +15,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import lombok.RequiredArgsConstructor;
 
 @Path(Endpoint.PATH)
@@ -31,14 +31,15 @@ public class Endpoint {
   private final Finalizer finalizer;
 
   @POST
-  @Transactional
   public Response createNumber(long number) {
     Number toCreate = Number.of(number);
+    QuarkusTransaction.begin();
     entityManager.persist(toCreate);
     try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
       context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
     }
     finalizer.end();
+    QuarkusTransaction.commit();
     // @formatter:off
     return Response
         .created(URI.create("%s/%d".formatted(PATH, number)))
