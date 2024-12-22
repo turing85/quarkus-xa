@@ -1,6 +1,7 @@
 package de.turing85.quarkus.xa;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Random;
@@ -92,29 +93,32 @@ class EndpointTest {
           // then
           .then()
               .statusCode(is(Response.Status.CREATED.getStatusCode()))
-              .header(
-                  HttpHeaders.LOCATION,
-                  is("%s/%d".formatted(url, numberToSend)))
+              .contentType(
+                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
+              .header(HttpHeaders.LOCATION, is("%s/%d".formatted(url, numberToSend)))
               .body("value", is(numberToSend))
               .extract().body().as(Number.class);
       // @formatter:on
+
       long received = getMessage(consumer).getBody(Long.class);
       Truth.assertThat(received).isEqualTo(numberToSend);
+
       // @formatter:off
       List<Number> results = entityManager
           .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
-          .setParameter("value", numberToSend)
+          .setParameter("value", expectedNumber.getValue())
           .getResultList();
       // @formatter:on
       Truth.assertThat(results).hasSize(1);
-      Truth.assertThat(results.getFirst().getValue()).isEqualTo(numberToSend);
+      Truth.assertThat(results.getFirst().getValue()).isEqualTo(expectedNumber.getValue());
 
       // @formatter:off
       List<Number> actualNumbers = RestAssured
           .when().get(Long.toString(numberToSend))
           .then()
               .statusCode(is(Response.Status.OK.getStatusCode()))
-              .contentType(is(MediaType.APPLICATION_JSON))
+              .contentType(
+                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(1);
@@ -148,7 +152,8 @@ class EndpointTest {
       // then
           .then()
               .statusCode(is(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()))
-              .contentType(MediaType.APPLICATION_JSON)
+              .contentType(
+                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
               .body(is(GeneralExceptionMapper.BODY));
       // @formatter:on
       Mockito.verify(finalizer, Mockito.times(1)).end();
@@ -166,7 +171,8 @@ class EndpointTest {
           .when().get(Long.toString(numberToSend))
           .then()
               .statusCode(is(Response.Status.OK.getStatusCode()))
-              .contentType(is(MediaType.APPLICATION_JSON))
+              .contentType(
+                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(0);
