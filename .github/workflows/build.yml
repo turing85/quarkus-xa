@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - 'main'
+      - 'with-quarkus-transaction'
+      - 'programmatically'
     paths-ignore:
       - '**.gitignore'
       - 'CODEOWNERS'
