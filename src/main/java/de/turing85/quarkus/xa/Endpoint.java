@@ -2,11 +2,17 @@ package de.turing85.quarkus.xa;
 
 import java.net.URI;
 
-import jakarta.jms.ConnectionFactory;
-import jakarta.jms.JMSContext;
-import jakarta.jms.Session;
+import jakarta.jms.XAConnectionFactory;
+import jakarta.jms.XAJMSContext;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
+import jakarta.transaction.HeuristicMixedException;
+import jakarta.transaction.HeuristicRollbackException;
+import jakarta.transaction.NotSupportedException;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
+import jakarta.transaction.TransactionManager;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -26,25 +32,53 @@ public class Endpoint {
   public static final String PATH = "numbers";
   public static final String TOPIC_NUMBERS_CREATED = "numbers-created";
 
+  private final TransactionManager transactionManager;
   private final EntityManager entityManager;
-  private final ConnectionFactory connectionFactory;
+  private final XAConnectionFactory xaConnectionFactory;
   private final Finalizer finalizer;
 
   @POST
-  @Transactional
-  public Response createNumber(long number) {
+  public Response createNumber(long number) throws RollbackException, HeuristicRollbackException,
+      HeuristicMixedException, NotSupportedException, SystemException {
     Number toCreate = Number.of(number);
-    entityManager.persist(toCreate);
-    try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
+    try {
+      transactionManager.begin();
+      entityManager.joinTransaction();
+      entityManager.persist(toCreate);
+      XAJMSContext context = createContextAndRegisterWithTransaction();
       context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
+      finalizer.end();
+      transactionManager.commit();
+      // @formatter:off
+      return Response
+          .created(URI.create("%s/%d".formatted(PATH, number)))
+          .entity(toCreate)
+          .build();
+      // @formatter:on
+    } catch (HeuristicRollbackException | HeuristicMixedException | NotSupportedException
+        | RuntimeException e) {
+      transactionManager.rollback();
+      throw e;
     }
-    finalizer.end();
-    // @formatter:off
-    return Response
-        .created(URI.create("%s/%d".formatted(PATH, number)))
-        .entity(toCreate)
-        .build();
-    // @formatter:on
+  }
+
+  private XAJMSContext createContextAndRegisterWithTransaction()
+      throws SystemException, RollbackException {
+    XAJMSContext context = xaConnectionFactory.createXAContext();
+    Transaction transaction = transactionManager.getTransaction();
+    transaction.enlistResource(context.getXAResource());
+    transaction.registerSynchronization(new Synchronization() {
+      @Override
+      public void beforeCompletion() {
+        // nothing to do
+      }
+
+      @Override
+      public void afterCompletion(int status) {
+        context.close();
+      }
+    });
+    return context;
   }
 
   @GET
