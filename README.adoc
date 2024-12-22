@@ -2,6 +2,285 @@
 
 Shows how to use XA transactions over multiple resources (in this case: database and ActiveMQ Artemis).
 
+== Test setup
+
+To verify that our implementations are working, two test cases (one happy path test, one rainy path test) are provided under link:src/test/java/de/turing85/quarkus/xa/EndpointTest.java[`src/test/java/de/turing85/quarkus/xa/EndpointTest.java`].
+
+We can build the application and run the tests by running
+
+.Building the application and running the tests
+[source,bash]
+----
+./mvnw clean package
+----
+
+The tests are configured to log on level `INFO` to the console, and to level `FINEST` to file `target/quarkus.log`.
+Additionally, everything under category `com.arjuna` (which is the transaction manager of narayana) is configured to log on level `FINEST`.
+Thus, we can inspect the log file to verify that our implementation integrates the right resources in the XA transaction.
+
+== Annotation-based approach
+
+Branch `main` shows the annotation-based approach.
+This requires the following points
+
+* dependencies:
+** `quarkus-narayana-jta` for XA-support
+** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql)
+** `quarkus-hibernate-orm` for the entity manager
+** `quarkus-artemis-jms` for the general JMS setup
+** `quarkus-pooled-jms` for the annotation-based XA integration
+* configuration:
+* `quarkus.datasource.transaction = xa`  so the datasource supports XA
+* `quakrus.artemis.xa-enable = false` (set by default) because
+* `quarkus.pooled-jms-transaction = xa` so `quarkus-pooled-jms` handles XA transactions
+
+With this setup, we can then use the `@Transactional` annotation on the method(s) in question:
+
+.Annotation-based method
+[source,java]
+----
+...
+public class Endpoint {
+  ...
+  @POST
+  @Transactional <1>
+  public Response createNumber(long number) {
+    Number toCreate = Number.of(number);
+    entityManager.persist(toCreate);
+    try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) { <2>
+      context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
+    }
+    finalizer.end();
+    // @formatter:off
+    return Response
+        .created(URI.create("%s/%d".formatted(PATH, number)))
+        .entity(toCreate)
+        .build();
+    // @formatter:on
+  }
+  ...
+}
+----
+
+<1> Marks this method as transactional.
+Since we use XA-resources, the method uses XA-transactions
+<2> We can auto-close the context.
+Everything else will be handled by `quarkus-pooled-jms`
+
+When we now run the tests and inspect the log file under `target/quarkus.log`, we see the following:
+
+.Logs of the test execution
+[source]
+----
+2024-12-22 02:36:25,987 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:a2d7:67676d17:7 <1>
+...
+2024-12-22 02:36:26,049 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( io.agroal.narayana.BaseXAResource@22465ba6 ) <2>
+...
+2024-12-22 02:36:26,070 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( ClientSessionImpl [name=289f1c0b-c005-11ef-afdb-28dfeb2beb98, username=null, closed=false, factory = org.apache.activemq.artemis.core.client.impl.ClientSessionFactoryImpl@631c244c, metaData=()]@3ec32108 ) <3>
+...
+2024-12-22 02:36:26,109 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.rollback <4>
+...
+2024-12-22 02:36:31,633 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:a2d7:67676d17:11 <5>
+...
+2024-12-22 02:36:31,634 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.registerSynchronization - Class: class org.hibernate.resource.transaction.backend.jta.internal.synchronization.RegisteredSynchronization HashCode: 113590058 toString: org.hibernate.resource.transaction.backend.jta.internal.synchronization.RegisteredSynchronization@6c53f2a <6>
+...
+2024-12-22 02:36:31,637 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.registerSynchronization - Class: class org.messaginghub.pooled.jms.pool.PooledXAConnection$JmsPooledXASessionSynchronization HashCode: 1706078365 toString: org.messaginghub.pooled.jms.pool.PooledXAConnection$JmsPooledXASessionSynchronization@65b0b09d <7>
+2024-12-22 02:36:31,653 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[362391] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.commit <8>
+...
+----
+
+<1> rainy path test: XA transaction started
+<2> rainy path test: DB resource is added to transaction
+<3> rainy path test: Artemis resource is added to transaction
+<4> rainy path test: Rollback
+<5> happy path test: XA transaction started
+<6> happy path test: DB resource is added to transaction
+<7> happy path test: Artemis resource is added to transaction
+<8> happy path test: Commit
+
+We see that all resources are accounted for, and that the application behaves as expected.
+
+== Using `QuarkusTransaction`
+
+In this approach we use `QuarkusTransaction.begin()`, `QuarkusTransaction.commit()`, and `QuarkusTransaction.rollback()` instead of `@Transactional` to control the transactional behaviour. The implementation can be found on branch `with-quarkus-transaction`.
+
+This requires the following points (identical to the annotation-based approach):
+* dependencies:
+** `quarkus-narayana-jta` for XA-support
+** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql)
+** `quarkus-hibernate-orm` for the entity manager
+** `quarkus-artemis-jms` for the general JMS setup
+** `quarkus-pooled-jms` for the annotation-based XA integration
+* configuration:
+* `quarkus.datasource.transaction = xa`  so the datasource supports XA
+* `quakrus.artemis.xa-enable = false` (set by default) because
+* `quarkus.pooled-jms-transaction = xa` so `quarkus-pooled-jms` handles XA transactions
+
+The implementation looks like this:
+
+.Implementation of the `QuarkusTransaction`-based approach
+[source,java]
+----
+public class Endpoint {
+  ...
+  @POST
+  public Response createNumber(long number) {
+    Number toCreate = Number.of(number);
+    QuarkusTransaction.begin(); <1>
+    try {
+      entityManager.persist(toCreate);
+      try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
+        context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
+      }
+      finalizer.end();
+    } catch (Exception e) {
+      QuarkusTransaction.rollback(); <2>
+      throw e;
+    }
+    QuarkusTransaction.commit(); <3>
+    // @formatter:off
+    return Response
+        .created(URI.create("%s/%d".formatted(PATH, number)))
+        .entity(toCreate)
+        .build();
+    // @formatter:on
+  }
+  ...
+}
+----
+
+<1> Explicit start of transaction
+<2> If any exception occurs, we roll the transaction back and rethrow the exception, stopping the execution of the method
+<3> If no exception occurs, we commit the transaction
+
+When we now run the tests and inspect the log file under `target/quarkus.log`, we see the following:
+
+.Logs of the test execution
+[source]
+----
+2024-12-22 02:58:14,069 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:84b9:67677232:7 <1>
+...
+2024-12-22 02:58:14,145 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( io.agroal.narayana.BaseXAResource@7e9b9142 ) <2>
+...
+2024-12-22 02:58:14,168 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( ClientSessionImpl [name=344ede6e-c008-11ef-9d7b-28dfeb2beb98, username=null, closed=false, factory = org.apache.activemq.artemis.core.client.impl.ClientSessionFactoryImpl@32c29f7b, metaData=()]@116e272f ) <3>
+...
+2024-12-22 02:58:14,197 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.rollback <4>
+...
+2024-12-22 02:58:19,779 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:84b9:67677232:11 <5>
+...
+2024-12-22 02:58:19,782 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( io.agroal.narayana.BaseXAResource@3d9c8e38 ) <6>
+...
+2024-12-22 02:58:19,783 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( ClientSessionImpl [name=344ede6e-c008-11ef-9d7b-28dfeb2beb98, username=null, closed=false, factory = org.apache.activemq.artemis.core.client.impl.ClientSessionFactoryImpl@32c29f7b, metaData=()]@116e272f ) <7>
+...
+2024-12-22 02:58:19,789 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[366254] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.commit <8>
+...
+----
+
+<1> rainy path test: XA transaction started
+<2> rainy path test: DB resource is added to transaction
+<3> rainy path test: Artemis resource is added to transaction
+<4> rainy path test: Rollback
+<5> happy path test: XA transaction started
+<6> happy path test: DB resource is added to transaction
+<7> happy path test: Artemis resource is added to transaction
+<8> happy path test: Commit
+
+Again, we see that all resources are accounted for, and that the implementation behaves as expected.
+
+== Programmatic approach
+
+In this approach, we rely on `@Transactional` to handle the datasource-side of the transcation.
+We will, however, register the Artemis-side programmatically to participate in this transaction.
+
+This requires the following points
+
+* dependencies:
+** `quarkus-narayana-jta` for XA-support
+** `quarkus-jdbc-...` for the JDBC configuration (in this case: `quarkus-jdbc-postgresql)
+** `quarkus-hibernate-orm` for the entity manager
+** `quarkus-artemis-jms` for the general JMS setup
+** `quarkus-pooled-jms` must not be present
+* `quarkus.datasource.transaction = xa`  so the datasource supports XA
+* `quakrus.artemis.xa-enable = true` so we can inject a `XAConnectionFactory` into our bean
+
+The code can be found on branch `programmatically` and looks like this
+
+.Programmatic transaction management
+[source,java]
+----
+public class Endpoint {
+  ...
+  @Transactional <1>
+  public Response createNumber(long number) throws SystemException, RollbackException {
+    Number toCreate = Number.of(number);
+    entityManager.persist(toCreate); <2>
+    Transaction transaction = transactionManager.getTransaction(); <3>
+    XAJMSContext context = xaConnectionFactory.createXAContext(); <4>
+    transaction.enlistResource(context.getXAResource()); <4>
+    transaction.registerSynchronization(new Synchronization() {
+      @Override
+      public void beforeCompletion() {
+        // nothing to do
+      }
+
+      @Override
+      public void afterCompletion(int status) {
+        context.close(); <5>
+      }
+    });
+    context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
+    finalizer.end();
+    // @formatter:off
+    return Response
+        .created(URI.create("%s/%d".formatted(PATH, number)))
+        .entity(toCreate)
+        .build();
+    // @formatter:on
+  }
+  ...
+}
+----
+<1> Making this method transactional
+<2> DB-side transaction will be handled through the transaction
+<3> Get the active transaction...
+<4> ... to register the current JMS context
+<5> When the transaction is completed, we need to close the JMS context in order to not leak resources
+
+When we now run the tests and inspect the log file under `target/quarkus.log`, we see the following:
+
+.Logs of the test execution
+[source]
+----
+...
+2024-12-22 03:16:36,237 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:8c9f:67677682:7 <1>
+...
+2024-12-22 03:16:36,283 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( io.agroal.narayana.BaseXAResource@45ce209 ) <2>
+...
+2024-12-22 03:16:36,305 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( ClientSessionImpl [name=c53c16d5-c00a-11ef-b3f2-28dfeb2beb98, username=null, closed=false, factory = org.apache.activemq.artemis.core.client.impl.ClientSessionFactoryImpl@7215c580, metaData=()]@59f57da1 ) <3>
+...
+2024-12-22 03:16:36,334 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.rollback
+...
+2024-12-22 03:16:41,795 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.arjuna] (executor-thread-1) BasicAction::Begin() for action-id 0:ffff7f000101:8c9f:67677682:11 <5>
+...
+2024-12-22 03:16:41,797 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( io.agroal.narayana.BaseXAResource@bfc7c98 ) <6>
+...
+2024-12-22 03:16:41,813 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) TransactionImple.enlistResource ( ClientSessionImpl [name=c8848b1e-c00a-11ef-b3f2-28dfeb2beb98, username=null, closed=false, factory = org.apache.activemq.artemis.core.client.impl.ClientSessionFactoryImpl@42785cf5, metaData=()]@67087b2 ) <7>
+...
+2024-12-22 03:16:41,826 ecco /opt/java/mandrel/23.1.3.1-java21/bin/java[370196] TRACE [com.arj.ats.jta] (executor-thread-1) BaseTransaction.commit
+...
+----
+
+<1> rainy path test: XA transaction started
+<2> rainy path test: DB resource is added to transaction
+<3> rainy path test: Artemis resource is added to transaction
+<4> rainy path test: Rollback
+<5> happy path test: XA transaction started
+<6> happy path test: DB resource is added to transaction
+<7> happy path test: Artemis resource is added to transaction
+<8> happy path test: Commit
+
+We see again that all resources are accounted for, and that the application behaves correctly.
+
 == Contributors ✨
 
 Thanks goes to these wonderful people (https://allcontributors.org/docs/en/emoji-key[emoji key]):
