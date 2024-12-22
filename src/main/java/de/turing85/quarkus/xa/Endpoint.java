@@ -2,10 +2,14 @@ package de.turing85.quarkus.xa;
 
 import java.net.URI;
 
-import jakarta.jms.ConnectionFactory;
-import jakarta.jms.JMSContext;
-import jakarta.jms.Session;
+import jakarta.jms.XAConnectionFactory;
+import jakarta.jms.XAJMSContext;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
+import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -26,18 +30,31 @@ public class Endpoint {
   public static final String PATH = "numbers";
   public static final String TOPIC_NUMBERS_CREATED = "numbers-created";
 
+  private final TransactionManager transactionManager;
   private final EntityManager entityManager;
-  private final ConnectionFactory connectionFactory;
+  private final XAConnectionFactory xaConnectionFactory;
   private final Finalizer finalizer;
 
   @POST
   @Transactional
-  public Response createNumber(long number) {
+  public Response createNumber(long number) throws SystemException, RollbackException {
     Number toCreate = Number.of(number);
     entityManager.persist(toCreate);
-    try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
-      context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
-    }
+    Transaction transaction = transactionManager.getTransaction();
+    XAJMSContext context = xaConnectionFactory.createXAContext();
+    transaction.enlistResource(context.getXAResource());
+    transaction.registerSynchronization(new Synchronization() {
+      @Override
+      public void beforeCompletion() {
+        // nothing to do
+      }
+
+      @Override
+      public void afterCompletion(int status) {
+        context.close();
+      }
+    });
+    context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
     finalizer.end();
     // @formatter:off
     return Response
