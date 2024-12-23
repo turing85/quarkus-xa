@@ -1,5 +1,25 @@
 = quarkus-xa
 
+[cols=2*,frame=none,grid=none,width=100%]
+|===
+^| https://github.com/turing85/quarkus-xa?tab=Apache-2.0-1-ov-file[image:https://img.shields.io/github/license/turing85/quarkus-xa[GitHub License]]
+^| https://github.com/turing85/quarkus-xa?tab=readme-ov-file#contributors-[image:https://img.shields.io/github/all-contributors/turing85/quarkus-xa[GitHub contributors from allcontributors.org\]]
+|===
+
+[cols=3*,frame=none,grid=none,width=100%]
+|===
+3+^| **Branch status**
+^| main +
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Amain[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=main&?cacheSeconds=30[GitHub Actions Workflow Status]]
+
+^| with-quarkus-transaction +
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Awith-quarkus-transaction[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=with-quarkus-transaction&cacheSeconds=30[GitHub Actions Workflow Status]]
+
+^| programmatically +
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Aprogrammatically[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=programmatically&cacheSeconds=30[GitHub Actions Workflow Status]]
+
+|===
+
 Shows how to use XA transactions over multiple resources (in this case: database and ActiveMQ Artemis).
 
 == Test setup
