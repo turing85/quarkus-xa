@@ -130,16 +130,11 @@ public class Endpoint {
   public Response createNumber(long number) {
     Number toCreate = Number.of(number);
     QuarkusTransaction.begin(); <1>
-    try {
-      entityManager.persist(toCreate);
-      try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
-        context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
-      }
-      finalizer.end();
-    } catch (Exception e) {
-      QuarkusTransaction.rollback(); <2>
-      throw e;
+    entityManager.persist(toCreate);
+    try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) { <2>
+      context.createProducer().send(context.createTopic(TOPIC_NUMBERS_CREATED), number);
     }
+    finalizer.end();
     QuarkusTransaction.commit(); <3>
     // @formatter:off
     return Response
@@ -153,8 +148,12 @@ public class Endpoint {
 ----
 
 <1> Explicit start of transaction
-<2> If any exception occurs, we roll the transaction back and rethrow the exception, stopping the execution of the method
+<2> We can auto-close the context.
+Everything else will be handled by `quarkus-pooled-jms`
 <3> If no exception occurs, we commit the transaction
+
+Notice that we do not need to catch the exception.
+If an exception is thrown while the transaction is still open, the transaction is automatically rolled back.
 
 When we now run the tests and inspect the log file under `target/quarkus.log`, we see the following:
 
