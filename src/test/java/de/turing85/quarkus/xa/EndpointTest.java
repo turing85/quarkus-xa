@@ -35,6 +35,8 @@ import static org.hamcrest.CoreMatchers.is;
 
 @QuarkusTest
 class EndpointTest {
+  private static final String MEDIA_TYPE_APPLICATION_JSON_UTF_8 =
+      "%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8);
   private static final Random RANDOM = new Random();
 
   @Inject
@@ -63,14 +65,10 @@ class EndpointTest {
 
   @AfterEach
   void tearDown() {
-    if (consumer != null) {
-      consumer.close();
-      consumer = null;
-    }
-    if (context != null) {
-      context.close();
-      context = null;
-    }
+    Optional.ofNullable(consumer).ifPresent(JMSConsumer::close);
+    consumer = null;
+    Optional.ofNullable(context).ifPresent(JMSContext::close);
+    context = null;
   }
 
   private Optional<Message> getMessage() {
@@ -87,18 +85,17 @@ class EndpointTest {
   }
 
   @Nested
-  @QuarkusTest
   @TestHTTPEndpoint(Endpoint.class)
   class HappyPath {
     @Test
     void whenAllIsGood_thenShouldCreateAndSend() throws JMSException {
       // given
-      long numberToSend = RANDOM.nextLong();
+      long valueToSend = RANDOM.nextLong();
       // @formatter:off
       Number expectedNumber = RestAssured
           .given()
               .contentType(MediaType.APPLICATION_JSON)
-              .body(numberToSend)
+              .body(valueToSend)
 
       // when
           .when().post()
@@ -106,10 +103,9 @@ class EndpointTest {
       // then
           .then()
               .statusCode(is(Response.Status.CREATED.getStatusCode()))
-              .contentType(
-                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
-              .header(HttpHeaders.LOCATION, is("%s/%d".formatted(url, numberToSend)))
-              .body("value", is(numberToSend))
+              .contentType(is(MEDIA_TYPE_APPLICATION_JSON_UTF_8))
+              .header(HttpHeaders.LOCATION, is("%s/%d".formatted(url, valueToSend)))
+              .body("value", is(valueToSend))
               .extract().body().as(Number.class);
       // @formatter:on
 
@@ -117,7 +113,7 @@ class EndpointTest {
 
       Optional<Message> maybeMessage = getMessage();
       Truth.assertThat(maybeMessage).isPresent();
-      Truth.assertThat(maybeMessage.get().getBody(Long.class)).isEqualTo(numberToSend);
+      Truth.assertThat(maybeMessage.get().getBody(Long.class)).isEqualTo(valueToSend);
 
       List<Number> results = getEntriesWithValue(expectedNumber.getValue());
       Truth.assertThat(results).hasSize(1);
@@ -125,11 +121,10 @@ class EndpointTest {
 
       // @formatter:off
       List<Number> actualNumbers = RestAssured
-          .when().get(Long.toString(numberToSend))
+          .when().get(Long.toString(valueToSend))
           .then()
               .statusCode(is(Response.Status.OK.getStatusCode()))
-              .contentType(
-                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
+              .contentType(is(MEDIA_TYPE_APPLICATION_JSON_UTF_8))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(1);
@@ -139,19 +134,18 @@ class EndpointTest {
   }
 
   @Nested
-  @QuarkusTest
   @TestHTTPEndpoint(Endpoint.class)
   class RainyPath {
     @Test
     void whenFinalizerFails_thenShouldNotCreateAndSend() {
       // given
-      long numberToSend = RANDOM.nextLong();
+      long valueToSend = RANDOM.nextLong();
       Mockito.doThrow(new RuntimeException("Exception to test transaction")).when(finalizer).end();
       // @formatter:off
       RestAssured
           .given()
               .contentType(MediaType.APPLICATION_JSON)
-              .body(numberToSend)
+              .body(valueToSend)
 
       // when
           .when().post()
@@ -159,8 +153,7 @@ class EndpointTest {
       // then
           .then()
               .statusCode(is(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()))
-              .contentType(
-                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
+              .contentType(is(MEDIA_TYPE_APPLICATION_JSON_UTF_8))
               .body(is(GeneralExceptionMapper.BODY));
       // @formatter:on
 
@@ -168,15 +161,14 @@ class EndpointTest {
 
       Truth.assertThat(getMessage()).isEmpty();
 
-      Truth.assertThat(getEntriesWithValue(numberToSend)).isEmpty();
+      Truth.assertThat(getEntriesWithValue(valueToSend)).isEmpty();
 
       // @formatter:off
       List<Number> actualNumbers = RestAssured
-          .when().get(Long.toString(numberToSend))
+          .when().get(Long.toString(valueToSend))
           .then()
               .statusCode(is(Response.Status.OK.getStatusCode()))
-              .contentType(
-                  is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
+              .contentType(is(MEDIA_TYPE_APPLICATION_JSON_UTF_8))
           .extract().body().as(new TypeRef<>() {});
       // @formatter:on
       Truth.assertThat(actualNumbers).hasSize(0);
