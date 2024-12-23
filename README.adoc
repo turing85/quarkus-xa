@@ -215,6 +215,7 @@ The code can be found on branch `programmatically` and looks like this
 ...
 public class Endpoint {
   ...
+  @POST
   @Transactional <1>
   public Response createNumber(long number) throws SystemException, RollbackException {
     Number toCreate = Number.of(number);
