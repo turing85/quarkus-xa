@@ -4,6 +4,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 import jakarta.inject.Inject;
@@ -47,6 +48,9 @@ class EndpointTest {
   @Inject
   EntityManager entityManager;
 
+  @InjectMock
+  Finalizer finalizer;
+
   private JMSContext context;
   private JMSConsumer consumer;
 
@@ -69,8 +73,17 @@ class EndpointTest {
     }
   }
 
-  private static Message getMessage(JMSConsumer consumer) {
-    return consumer.receive(Duration.ofSeconds(5).toMillis());
+  private Optional<Message> getMessage() {
+    return Optional.ofNullable(consumer.receive(Duration.ofSeconds(5).toMillis()));
+  }
+
+  private List<Number> getEntriesWithValue(long numberToSend) {
+    // @formatter:off
+    return entityManager
+        .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
+        .setParameter("value", numberToSend)
+        .getResultList();
+    // @formatter:on
   }
 
   @Nested
@@ -78,7 +91,7 @@ class EndpointTest {
   @TestHTTPEndpoint(Endpoint.class)
   class HappyPath {
     @Test
-    void shouldCreateAndSend() throws JMSException {
+    void whenAllIsGood_thenShouldCreateAndSend() throws JMSException {
       // given
       long numberToSend = RANDOM.nextLong();
       // @formatter:off
@@ -100,15 +113,13 @@ class EndpointTest {
               .extract().body().as(Number.class);
       // @formatter:on
 
-      long received = getMessage(consumer).getBody(Long.class);
-      Truth.assertThat(received).isEqualTo(numberToSend);
+      Mockito.verify(finalizer, Mockito.times(1)).end();
 
-      // @formatter:off
-      List<Number> results = entityManager
-          .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
-          .setParameter("value", expectedNumber.getValue())
-          .getResultList();
-      // @formatter:on
+      Optional<Message> maybeMessage = getMessage();
+      Truth.assertThat(maybeMessage).isPresent();
+      Truth.assertThat(maybeMessage.get().getBody(Long.class)).isEqualTo(numberToSend);
+
+      List<Number> results = getEntriesWithValue(expectedNumber.getValue());
       Truth.assertThat(results).hasSize(1);
       Truth.assertThat(results.getFirst().getValue()).isEqualTo(expectedNumber.getValue());
 
@@ -131,11 +142,8 @@ class EndpointTest {
   @QuarkusTest
   @TestHTTPEndpoint(Endpoint.class)
   class RainyPath {
-    @InjectMock
-    Finalizer finalizer;
-
     @Test
-    void finalizerFails_shouldNotSend() {
+    void whenFinalizerFails_thenShouldNotCreateAndSend() {
       // given
       long numberToSend = RANDOM.nextLong();
       Mockito.doThrow(new RuntimeException("Exception to test transaction")).when(finalizer).end();
@@ -155,15 +163,12 @@ class EndpointTest {
                   is("%s;charset=%s".formatted(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8)))
               .body(is(GeneralExceptionMapper.BODY));
       // @formatter:on
+
       Mockito.verify(finalizer, Mockito.times(1)).end();
-      Truth.assertThat(getMessage(consumer)).isNull();
-      // @formatter:off
-      List<Number> results = entityManager
-          .createQuery("SELECT number FROM Number number WHERE value = :value", Number.class)
-          .setParameter("value", numberToSend)
-          .getResultList();
-      // @formatter:on
-      Truth.assertThat(results).hasSize(0);
+
+      Truth.assertThat(getMessage()).isEmpty();
+
+      Truth.assertThat(getEntriesWithValue(numberToSend)).isEmpty();
 
       // @formatter:off
       List<Number> actualNumbers = RestAssured
