@@ -132,7 +132,6 @@ class EndpointTest {
   @TestHTTPEndpoint(Endpoint.class)
   class RainyPath {
     @InjectMock
-    @SuppressWarnings("unused")
     Finalizer finalizer;
 
     @Test
