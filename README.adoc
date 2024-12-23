@@ -1,24 +1,12 @@
 = quarkus-xa
 
-[cols=2*,frame=none,grid=none,width=100%]
-|===
-^| https://github.com/turing85/quarkus-xa?tab=Apache-2.0-1-ov-file[image:https://img.shields.io/github/license/turing85/quarkus-xa[GitHub License]]
-^| https://github.com/turing85/quarkus-xa?tab=readme-ov-file#contributors-[image:https://img.shields.io/github/all-contributors/turing85/quarkus-xa[GitHub contributors from allcontributors.org\]]
-|===
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Amain[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=main&label=main&cacheSeconds=30[GitHub Actions Workflow Status]]
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Awith-quarkus-transaction[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=with-quarkus-transaction&label=with-quarkus-transaction&cacheSeconds=30[GitHub Actions Workflow Status]]
+https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Aprogrammatically[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=programmatically&label=programmatically&cacheSeconds=30[GitHub Actions Workflow Status]]
+https://github.com/turing85/quarkus-xa/actions/workflows/nightly-owasp-scan.yml?query=branch%3Amain[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/nightly-owasp-scan.yml?branch=main&label=Nightly%20OWASP%20Scan&cacheSeconds=30[GitHub Actions Workflow Status]]
 
-[cols=3*,frame=none,grid=none,width=100%]
-|===
-3+^| **Branch status**
-^| main +
-https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Amain[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=main&?cacheSeconds=30[GitHub Actions Workflow Status]]
-
-^| with-quarkus-transaction +
-https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Awith-quarkus-transaction[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=with-quarkus-transaction&cacheSeconds=30[GitHub Actions Workflow Status]]
-
-^| programmatically +
-https://github.com/turing85/quarkus-xa/actions/workflows/build.yml?query=branch%3Aprogrammatically[image:https://img.shields.io/github/actions/workflow/status/turing85/quarkus-xa/build.yml?branch=programmatically&cacheSeconds=30[GitHub Actions Workflow Status]]
-
-|===
+https://github.com/turing85/quarkus-xa?tab=Apache-2.0-1-ov-file[image:https://img.shields.io/github/license/turing85/quarkus-xa[GitHub License]]
+https://github.com/turing85/quarkus-xa?tab=readme-ov-file#contributors-[image:https://img.shields.io/github/all-contributors/turing85/quarkus-xa[GitHub contributors from allcontributors.org]]
 
 Shows how to use XA transactions over multiple resources (in this case: database and ActiveMQ Artemis).
 
