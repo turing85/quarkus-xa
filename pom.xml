@@ -23,7 +23,7 @@
         <surefire-plugin.version>3.5.2</surefire-plugin.version>
 
         <!-- Dependency versions -->
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>1.18.38</lombok.version>
 
         <!-- Quarkus versions -->
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
