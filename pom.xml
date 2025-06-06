@@ -31,7 +31,7 @@
         <quarkus.platform.version>3.23.2</quarkus.platform.version>
 
         <!-- Quarkiverse dependencies -->
-        <quarkus-artemis.version>3.8.1</quarkus-artemis.version>
+        <quarkus-artemis.version>3.8.2</quarkus-artemis.version>
         <quarkus-pooled-jms.version>2.8.0</quarkus-pooled-jms.version>
 
         <!-- Test dependency versions -->
