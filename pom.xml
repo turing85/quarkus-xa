@@ -35,7 +35,7 @@
         <quarkus-pooled-jms.version>2.8.0</quarkus-pooled-jms.version>
 
         <!-- Test dependency versions -->
-        <truth.version>1.4.4</truth.version>
+        <truth.version>1.4.5</truth.version>
 
         <!-- Project setup -->
         <attach-elf.skip>true</attach-elf.skip>
