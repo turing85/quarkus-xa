@@ -28,7 +28,7 @@
         <!-- Quarkus versions -->
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.28.2</quarkus.platform.version>
+        <quarkus.platform.version>3.28.3</quarkus.platform.version>
 
         <!-- Quarkiverse dependencies -->
         <quarkus-artemis.version>3.10.0</quarkus-artemis.version>
