@@ -14,6 +14,8 @@ jobs:
     name: Nightly OWASP Scan
     uses: turing85/shared-github-workflows/.github/workflows/turing85-maven-owasp-scan-quarkus.yml@main
     with:
+      graalvm-version: 25.0.2.0-Final
+      java-version: 25
       comment-enabled: false
     secrets:
       nvd-api-key: ${{ secrets.NVD_API_KEY }}

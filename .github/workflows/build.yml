@@ -38,5 +38,8 @@ jobs:
   build:
     name: Build
     uses: turing85/shared-github-workflows/.github/workflows/turing85-maven-quarkus-single-module-build.yml@main
+    with:
+      graalvm-version: mandrel-25.0.1.0-Final
+      java-version: 25
     secrets:
       nvd-api-key: ${{ secrets.NVD_API_KEY }}
