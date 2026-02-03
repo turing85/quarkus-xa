@@ -20,7 +20,7 @@ RUN upx \
   -o application-compressed \
   application
 
-FROM ${DISTROLESS_IMAGE} as runner
+FROM ${DISTROLESS_IMAGE} AS runner
 ARG APP_DIR=/deployment
 ARG UID=1001
 
