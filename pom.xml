@@ -28,7 +28,7 @@
         <!-- Quarkus versions -->
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.31.4</quarkus.platform.version>
+        <quarkus.platform.version>3.32.1</quarkus.platform.version>
 
         <!-- Quarkiverse dependencies -->
         <quarkus-artemis.version>3.12.1</quarkus-artemis.version>
@@ -380,10 +380,6 @@
         <dependency>
             <groupId>org.jboss.logging</groupId>
             <artifactId>commons-logging-jboss-logging</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jboss.logmanager</groupId>
-            <artifactId>log4j-jboss-logmanager</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.logmanager</groupId>
