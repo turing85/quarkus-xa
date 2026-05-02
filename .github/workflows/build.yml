@@ -30,7 +30,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.repository != 'turing85/quarkus-xa' }}
 
 permissions:
-  actions: write
   checks: write
   pull-requests: write
 
